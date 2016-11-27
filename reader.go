@@ -128,9 +128,11 @@ func (r *Reader) Read(p []float32) (int, error) {
 	if len(p)%r.Channels() != 0 {
 		p = p[:len(p)/r.Channels()*r.Channels()]
 	}
+	out := p
 	total := 0
+	err := error(nil)
 	if r.toSkip > 0 {
-		err := r.skip()
+		err = r.skip()
 		if err != nil {
 			return 0, err
 		}
@@ -142,24 +144,33 @@ func (r *Reader) Read(p []float32) (int, error) {
 		p = p[n:]
 	}
 	for len(p) >= len(r.originalBuffer) {
-		n, err := r.read(p)
+		var n int
+		n, err = r.read(p)
 		total += n
 		if err != nil {
-			return total, err
+			goto end
 		}
 		p = p[n:]
 	}
 	if total == 0 {
-		err := r.fillBuffer()
+		err = r.fillBuffer()
 		if err != nil {
-			return total, err
+			goto end
 		}
 		n := copy(p, r.buffer)
 		r.buffer = r.buffer[n:]
 		total += n
 		p = p[n:]
 	}
-	return total, nil
+end:
+	for i := range out[:total] {
+		if out[i] > 1 {
+			out[i] = 1
+		} else if out[i] < -1 {
+			out[i] = -1
+		}
+	}
+	return total, err
 }
 
 func (r *Reader) fillBuffer() error {

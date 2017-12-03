@@ -125,6 +125,9 @@ func (r *Reader) Read(p []float32) (int, error) {
 	if r.r.lastPacket && len(r.buffer) == 0 {
 		return 0, io.EOF
 	}
+	if len(p) == 0 {
+		return 0, nil
+	}
 	if len(p)%r.Channels() != 0 {
 		p = p[:len(p)/r.Channels()*r.Channels()]
 	}
@@ -197,7 +200,10 @@ func (r *Reader) read(p []float32) (int, error) {
 		return n, err
 	}
 	if r.r.lastPacket {
-		n += int(r.r.currentPage.AbsoluteGranulePosition - r.position)
+		discard := int(r.position-r.r.currentPage.AbsoluteGranulePosition) * r.Channels()
+		if discard > 0 {
+			n -= discard
+		}
 		r.position = r.r.currentPage.AbsoluteGranulePosition
 		r.length = r.position
 	}

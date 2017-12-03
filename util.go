@@ -31,7 +31,7 @@ func ReadAll(in io.Reader) ([]float32, *Format, error) {
 		for {
 			n, err := r.Read(result[read:])
 			read += n
-			if err != nil {
+			if err != nil || read == len(result) {
 				if err == io.EOF {
 					err = nil
 				}

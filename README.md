@@ -1,7 +1,7 @@
 # oggvorbis
 a native go ogg/vorbis decoder
 
-[godoc](https://godoc.org/github.com/jfreymuth/oggvorbis)
+[![GoDoc](https://godoc.org/github.com/jfreymuth/oggvorbis?status.svg)](https://godoc.org/github.com/jfreymuth/oggvorbis)
 
 ## Usage
 

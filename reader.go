@@ -81,6 +81,9 @@ func (r *Reader) Channels() int { return r.dec.Channels() }
 // Bitrate returns a struct containing information about the bitrate.
 func (r *Reader) Bitrate() vorbis.Bitrate { return r.dec.Bitrate }
 
+// CommentHeader returns a struct containing info from the comment header.
+func (r *Reader) CommentHeader() vorbis.CommentHeader { return r.dec.CommentHeader }
+
 // Position returns the current position in samples.
 func (r *Reader) Position() int64 {
 	return r.position - int64(len(r.buffer)/r.Channels()) + int64(r.toSkip/r.Channels())

@@ -78,6 +78,23 @@ func GetFormat(in io.Reader) (*Format, error) {
 	}, nil
 }
 
+// GetCommentHeader returns a struct containing info from the comment header.
+func GetCommentHeader(in io.Reader) (vorbis.CommentHeader, error) {
+	var dec vorbis.Decoder
+	r := oggReader{source: in}
+	for i := 0; i < 2; i++ {
+		p, err := r.NextPacket()
+		if err != nil {
+			return vorbis.CommentHeader{}, err
+		}
+		err = dec.ReadHeader(p)
+		if err != nil {
+			return vorbis.CommentHeader{}, err
+		}
+	}
+	return dec.CommentHeader, nil
+}
+
 // GetLength returns the length of the file in samples and the audio format.
 func GetLength(in io.ReadSeeker) (int64, *Format, error) {
 	r := oggReader{source: in, seeker: in}

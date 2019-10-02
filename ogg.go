@@ -64,7 +64,7 @@ func (r *oggReader) Restore() error {
 		}
 		i := bytes.Index(b[:n], capturePattern[:])
 		if i == -1 {
-			r.buffer = b[n-3:]
+			r.buffer = b[n-3 : n]
 			continue
 		}
 		r.buffer = b[i:n]

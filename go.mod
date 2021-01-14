@@ -1,3 +1,5 @@
 module github.com/jfreymuth/oggvorbis
 
-require github.com/jfreymuth/vorbis v1.0.0
+go 1.15
+
+require github.com/jfreymuth/vorbis v1.0.1

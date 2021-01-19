@@ -36,7 +36,7 @@ func NewReader(in io.Reader) (*Reader, error) {
 func (r *Reader) init() error {
 	if r.r.seeker != nil {
 		length, err := r.r.LastPosition()
-		if err == nil {
+		if err == nil || err == io.EOF {
 			r.length = length
 		}
 		r.r.seeker.Seek(0, io.SeekStart)

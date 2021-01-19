@@ -89,6 +89,32 @@ func TestLength(t *testing.T) {
 	}
 }
 
+func TestLengthForUnexpectedEof(t *testing.T) {
+	ogg, err := os.Open("testdata/eof_issue.ogg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ogg.Close()
+
+	length, _, err := oggvorbis.GetLength(ogg)
+	if err != io.EOF {
+		t.Fatal(err)
+	}
+
+	const expectedLength = 72384
+	if length != expectedLength {
+		t.Errorf("length is %d, expected %d", length, expectedLength)
+	}
+	r, err := oggvorbis.NewReader(ogg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if r.Length() != expectedLength {
+		t.Fatalf("length is %d, expected %d", r.Length(), expectedLength)
+	}
+}
+
 func TestSeek(t *testing.T) {
 	ogg, err := os.Open("testdata/long.ogg")
 	if err != nil {

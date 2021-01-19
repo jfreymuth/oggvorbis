@@ -86,17 +86,18 @@ func (r *oggReader) LastPosition() (int64, error) {
 	var result int64
 	for {
 		err := p.readHeader(r)
-		if err != nil {
+		if err == io.EOF {
+			return result, nil
+		} else if err != nil {
 			return result, err
 		}
 		result = p.AbsoluteGranulePosition
 		if p.isLast() {
-			break
+			return result, nil
 		}
 		r.seeker.Seek(int64(p.totalSize-len(r.buffer)), io.SeekCurrent)
 		r.buffer = nil
 	}
-	return result, nil
 }
 
 func (r *oggReader) SeekPageBefore(pos int64) (int64, error) {

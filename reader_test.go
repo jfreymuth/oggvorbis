@@ -1,6 +1,7 @@
 package oggvorbis_test
 
 import (
+	"bytes"
 	"encoding/binary"
 	"io"
 	"os"
@@ -178,6 +179,13 @@ test:
 	_, err = r.Read(nil)
 	if err != io.EOF {
 		t.Errorf("error should be EOF, but is %s", err)
+	}
+}
+
+func TestEmpty(t *testing.T) {
+	_, err := oggvorbis.NewReader(bytes.NewReader(nil))
+	if err != io.ErrUnexpectedEOF {
+		t.Errorf("error should be unexpected EOF, but is %s", err)
 	}
 }
 

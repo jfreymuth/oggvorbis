@@ -39,6 +39,7 @@ func (r *Reader) init() error {
 		if err == nil {
 			r.length = length
 		}
+		r.r.buffer = nil
 		r.r.seeker.Seek(0, io.SeekStart)
 	}
 

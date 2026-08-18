@@ -223,7 +223,9 @@ func (p *page) readHeader(r io.Reader) error {
 			size = 0
 		}
 	}
-	p.needsContinue = segmentTable[p.PageSegments-1] == 0xFF
+	// A page may legitimately have zero segments; guard against the
+	// uint8 underflow of PageSegments-1 that would index an empty table.
+	p.needsContinue = len(segmentTable) > 0 && segmentTable[len(segmentTable)-1] == 0xFF
 	return nil
 }
 

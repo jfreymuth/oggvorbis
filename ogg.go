@@ -17,6 +17,10 @@ type oggReader struct {
 	packetIndex      int
 	ready            bool
 	lastPacket       bool
+
+	// continued holds the start of a packet that continues on the next
+	// page, copied out before that page overwrites currentPage's content.
+	continued []byte
 }
 
 func (r *oggReader) NextPacket() ([]byte, error) {
@@ -32,7 +36,7 @@ func (r *oggReader) NextPacket() ([]byte, error) {
 		r.ready = true
 	}
 	if r.packetIndex == r.currentPage.packetCount {
-		rest := r.currentPage.packets[r.currentPage.packetCount]
+		r.continued = append(r.continued[:0], r.currentPage.packets[r.currentPage.packetCount]...)
 		if r.currentPage.AbsoluteGranulePosition != -1 {
 			r.lastPagePosition = r.currentPage.AbsoluteGranulePosition
 		}
@@ -40,8 +44,9 @@ func (r *oggReader) NextPacket() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		if len(rest) > 0 {
-			r.currentPage.packets[0] = append(rest, r.currentPage.packets[0]...)
+		if len(r.continued) > 0 {
+			r.continued = append(r.continued, r.currentPage.packets[0]...)
+			r.currentPage.packets[0] = r.continued
 		}
 		r.packetIndex = 0
 		return r.NextPacket()
@@ -82,7 +87,7 @@ func (r *oggReader) LastPosition() (int64, error) {
 	if err := r.Restore(); err != nil {
 		return 0, err
 	}
-	var p page
+	p := &r.currentPage // scanned in place, so the scan allocates no page
 	var result int64
 	for {
 		err := p.readHeader(r)
@@ -104,7 +109,7 @@ func (r *oggReader) SeekPageBefore(pos int64) (int64, error) {
 	r.seeker.Seek(0, io.SeekStart)
 	r.buffer = nil
 	r.lastPacket = false
-	var p page
+	p := &r.currentPage // scanned in place, so the scan allocates no page
 	var lastOffset int64
 	var lastPos int64
 	for {
@@ -170,6 +175,9 @@ type pageHeader struct {
 func (p *pageHeader) isFirst() bool { return p.HeaderTypeFlag&headerFlagBeginningOfStream != 0 }
 func (p *pageHeader) isLast() bool  { return p.HeaderTypeFlag&headerFlagEndOfStream != 0 }
 
+// A page is reused for every page read through it: the header, segment
+// table and content land in buffers it keeps, and packets slice content, so
+// a packet is valid only until the next page is read.
 type page struct {
 	pageHeader
 	headerChecksum uint32
@@ -178,6 +186,10 @@ type page struct {
 	totalSize      int
 	needsContinue  bool
 	packets        [][]byte
+
+	header       [27]byte
+	segmentTable [255]byte
+	content      []byte
 }
 
 func (p *page) read(r io.Reader) error {
@@ -189,19 +201,26 @@ func (p *page) read(r io.Reader) error {
 }
 
 func (p *page) readHeader(r io.Reader) error {
-	data := make([]byte, 27)
+	data := p.header[:]
 	_, err := io.ReadFull(r, data)
 	if err != nil {
 		return err
 	}
-	binary.Read(bytes.NewReader(data), binary.LittleEndian, &p.pageHeader)
+	copy(p.CapturePattern[:], data[0:4])
+	p.StreamStructureVersion = data[4]
+	p.HeaderTypeFlag = data[5]
+	p.AbsoluteGranulePosition = int64(binary.LittleEndian.Uint64(data[6:14]))
+	p.StreamSerialNumber = binary.LittleEndian.Uint32(data[14:18])
+	p.PageSequenceNumber = binary.LittleEndian.Uint32(data[18:22])
+	p.PageChecksum = binary.LittleEndian.Uint32(data[22:26])
+	p.PageSegments = data[26]
 	if p.CapturePattern != capturePattern {
 		return errors.New("ogg: missing capture pattern")
 	}
 	if p.StreamStructureVersion != 0 {
 		return errors.New("ogg: unsupported version")
 	}
-	segmentTable := make([]byte, p.PageSegments)
+	segmentTable := p.segmentTable[:p.PageSegments]
 	_, err = io.ReadFull(r, segmentTable)
 	if err != nil {
 		return noEOF(err)
@@ -213,7 +232,11 @@ func (p *page) readHeader(r io.Reader) error {
 	size := 0
 	p.totalSize = 0
 	p.packetCount = 0
-	p.packetSizes = nil
+	if p.packetSizes == nil {
+		// one entry per segment at most, so this never grows
+		p.packetSizes = make([]int, 0, len(p.segmentTable))
+	}
+	p.packetSizes = p.packetSizes[:0]
 	for _, s := range segmentTable {
 		size += int(s)
 		p.totalSize += int(s)
@@ -230,7 +253,10 @@ func (p *page) readHeader(r io.Reader) error {
 }
 
 func (p *page) readContent(r io.Reader) error {
-	content := make([]byte, p.totalSize)
+	if cap(p.content) < p.totalSize {
+		p.content = make([]byte, p.totalSize)
+	}
+	content := p.content[:p.totalSize]
 	_, err := io.ReadFull(r, content)
 	if err != nil {
 		return noEOF(err)
@@ -239,7 +265,10 @@ func (p *page) readContent(r io.Reader) error {
 	if checksum != p.PageChecksum {
 		return errors.New("ogg: wrong checksum")
 	}
-	p.packets = make([][]byte, p.packetCount+1)
+	if cap(p.packets) < p.packetCount+1 {
+		p.packets = make([][]byte, p.packetCount+1)
+	}
+	p.packets = p.packets[:p.packetCount+1]
 	offset := 0
 	for i, size := range p.packetSizes {
 		p.packets[i] = content[offset : offset+size]

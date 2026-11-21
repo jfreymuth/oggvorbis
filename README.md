@@ -33,3 +33,7 @@ was created from an io.ReadSeeker.
 There are also convenience functions to read an entire (small) file, similar to ioutil.ReadAll.
 
 	data, format, err := oggvorbis.ReadAll(reader)
+
+## Contributing
+
+Please note that LLM-generated contributions will not be accepted

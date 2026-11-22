@@ -4,7 +4,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/jfreymuth/vorbis"
+	"github.com/jfreymuth/oggvorbis/vorbis"
 )
 
 // A Reader can read audio from an ogg/vorbis file.

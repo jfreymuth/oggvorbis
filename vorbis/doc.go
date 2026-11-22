@@ -8,4 +8,4 @@ The vorbis specification is available at:
 https://xiph.org/vorbis/doc/Vorbis_I_spec.html
 
 */
-package vorbis // import "github.com/jfreymuth/vorbis"
+package vorbis
